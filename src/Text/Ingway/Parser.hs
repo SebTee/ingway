@@ -13,25 +13,27 @@ This bocumentaion will use
 
 === __Basic EBNF definitions__
 @
-digit = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9"
+digit = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" ;
 
 upperCase = \"A\" | \"B\" | \"C\" | \"D\" | \"E\" | \"F\"
           | \"G\" | \"H\" | \"I\" | \"J\" | \"K\" | \"L\" 
           | \"M\" | \"N\" | \"O\" | \"P\" | \"Q\" | \"R\" 
           | \"S\" | \"T\" | \"U\" | \"V\" | \"W\" | \"X\" 
-          | \"Y\" | \"Z\"
+          | \"Y\" | \"Z\" ;
 
 lowerCase = \"a\" | \"b\" | \"c\" | \"d\" | \"e\" | \"f\"
           | \"g\" | \"h\" | \"i\" | \"j\" | \"k\" | \"l\" 
           | \"m\" | \"n\" | \"o\" | \"p\" | \"q\" | \"r\" 
           | \"s\" | \"t\" | \"u\" | \"v\" | \"w\" | \"x\" 
-          | \"y\" | \"z\"
+          | \"y\" | \"z\" ;
 
-letter = upperCase | lowerCase
+letter = upperCase | lowerCase ;
 
 hexDigit = digit
          | \"A\" | \"B\" | \"C\" | \"D\" | \"E\" | \"F\" 
-         | "a" | "b" | "c" | "d" | "e" | "f"
+         | "a" | "b" | "c" | "d" | "e" | "f" ;
+
+anyChar = ? any character ? ;
 @
 -}
 module Text.Ingway.Parser where
@@ -41,6 +43,7 @@ import Data.Maybe (fromJust)
 
 -- * Literals
 
+-- | A literal value in the Ingway language.
 data Literal = IntLit Integer
              | FloatLit Double
              | StrLit String
@@ -49,6 +52,18 @@ data Literal = IntLit Integer
 
 -- ** Strings
 
+{- |
+Parse a string literal.
+
+=== EBNF
+@charLit = """ , ( 'escapedChar' | anyChar - """ - "\\" ) , """ ;@
+
+=== __Examples__
+>>> parse strLit "" "\"hello\""
+Right (StrLit "hello")
+>>> parse strLit "" "\"\\\"\""
+Right (StrLit "\"")
+-}
 strLit :: Parsec String u Literal
 strLit = StrLit <$> between pqm pqm (many $ escapedChar <|> noneOf [qm])
   where
@@ -57,6 +72,20 @@ strLit = StrLit <$> between pqm pqm (many $ escapedChar <|> noneOf [qm])
 
 -- ** Characters
 
+{- |
+Parse a character literal.
+
+=== EBNF
+@charLit = "'" , ( 'escapedChar' | anyChar - "'" - "\\" ) , "'" ;@
+
+=== __Examples__
+>>> parse charLit "" "'a'"
+Right (CharLit 'a')
+>>> parse charLit "" "'\\n'"
+Right (CharLit '\n')
+>>> parse charLit "" "'\\x0041'"
+Right (CharLit 'A')
+-}
 charLit :: Parsec String u Literal
 charLit = CharLit <$> between pqm pqm (escapedChar <|> noneOf [qm])
   where
@@ -67,7 +96,7 @@ charLit = CharLit <$> between pqm pqm (escapedChar <|> noneOf [qm])
 Parse an escaped character into a single character.
 @"\\"@ is the escape character.
 
-=== __Single character escape__
+==== __Single character escape__
 +--------+---------+-----------------+
 | Escape | Unicode | Character       |
 +========+=========+=================+
@@ -90,8 +119,15 @@ Parse an escaped character into a single character.
 | @\\\\@ | U+005C  | Backslash       |
 +--------+---------+-----------------+
 
-=== Four hexadecimal digit escape characters
+==== Four hexadecimal digit escape characters
 @\\xHHHH@ where @H@ is a hexadecimal digit.
+
+=== EBNF
+@
+escapedChar = "\\" , ( singleCharEscape | charHex ) ;
+singleCharEscape = """ | "'" | "\\" | "b" | "f" | "n" | "r" | "t" | "0" ;
+charHex = "x" , 4 * hexDigit ;
+@
 
 === __Examples__
 >>> parse escapedChar "" "\n"
@@ -100,13 +136,6 @@ Right '\n'
 Right 'A'
 >>> parse escapedChar "" "\0"
 Right '\NUL'
-
-=== __EBNF__
-@
-escapedChar = "\\" , ( singleCharEscape | charHex )
-singleCharEscape = """ | "'" | "\\" | "b" | "f" | "n" | "r" | "t" | "0"
-charHex = "x" , 4 * hexDigit
-@
 -}
 escapedChar :: Parsec String u Char
 escapedChar = do
