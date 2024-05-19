@@ -14,6 +14,9 @@ parsesChar input expected = charLit `parses` input $ CharLit expected
 parsesString :: String -> String -> Expectation
 parsesString input expected = strLit `parses` input $ StrLit expected
 
+parsesNumber :: String -> Rational -> Expectation
+parsesNumber input expected = numberLit `parses` input $ NumLit expected
+
 parses :: (Stream s Identity t, Eq a, Show a) => Parsec s () a -> s -> a -> Expectation
 parses parser input expected = case parse parser "" input of
   Right result -> result `shouldBe` expected

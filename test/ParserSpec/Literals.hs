@@ -6,6 +6,59 @@ import ParserSpec.HelperFunctions
 
 literalsSpec :: Spec
 literalsSpec = describe "Literals" $ do
+  describe "numberLit" $ do
+    context "when given a positive integer" $ do
+      it "parses the number" $ do
+        parsesNumber "123" 123
+    context "when given a negative integer" $ do
+      it "parses the number" $ do
+        parsesNumber "-123" (-123)
+    context "when given a positive fraction" $ do
+      it "parses the number" $ do
+        parsesNumber "12.3" 12.3
+    context "when given a negative fraction" $ do
+      it "parses the number" $ do
+        parsesNumber "-12.3" (-12.3)
+    context "when given a positive number with exponent" $ do
+      it "parses the number" $ do
+        parsesNumber "12.3e3" 12300
+    context "when given a negative number with exponent" $ do
+      it "parses the number" $ do
+        parsesNumber "-12.3e3" (-12300)
+    context "when given a positive number with exponent with capital E" $ do
+      it "parses the number" $ do
+        parsesNumber "12.3E3" 12300
+    context "when given a negative number with exponent with capital E" $ do
+      it "parses the number" $ do
+        parsesNumber "-12.3E3" (-12300)
+    context "when given a positive number with exponent" $ do
+      it "parses the number" $ do
+        parsesNumber "123e3" 123000
+    context "when given a negative number with exponent" $ do
+      it "parses the number" $ do
+        parsesNumber "-123e3" (-123000)
+    context "when given a positive number with negative exponent" $ do
+      it "parses the number" $ do
+        parsesNumber "123e-3" 0.123
+    context "when given a negative number with negative exponent" $ do
+      it "parses the number" $ do
+        parsesNumber "-123e-3" (-0.123)
+    context "when given a positive fraction with negative exponent" $ do
+      it "parses the number" $ do
+        parsesNumber "12.3e-3" 0.0123
+    context "when given a negative number with negative exponent" $ do
+      it "parses the number" $ do
+        parsesNumber "-12.3e-3" (-0.0123)
+    context "when given a decimal point with no integer part" $ do
+      it "fails to parse" $ do
+        failsToParse numberLit ".123"
+    context "when given a decimal point with no fraction part" $ do
+      it "fails to parse" $ do
+        failsToParse numberLit "123."
+    context "when given a e with no exponent" $ do
+      it "fails to parse" $ do
+        failsToParse numberLit "123e"
+
   describe "charLit" $ do
     context "when given a character literal" $ do
       it "parses the character" $ do

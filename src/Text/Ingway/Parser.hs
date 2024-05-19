@@ -7,8 +7,8 @@ Maintainer  : SebTee
 
 Library for parsing the Ingway language.
 
-This bocumentaion will use
-[Extended Backus–Naur form](https://en.wikipedia.org/wiki/Extended_Backus-Naur_form)
+This bocumentaion will use [Extended Backus–Naur form]
+(https://en.wikipedia.org/wiki/Extended_Backus-Naur_form)
 (EBNF) to describe the grammar of the language.
 
 === __Basic EBNF definitions__
@@ -44,11 +44,58 @@ import Data.Maybe (fromJust)
 -- * Literals
 
 -- | A literal value in the Ingway language.
-data Literal = IntLit Integer
-             | FloatLit Double
+data Literal = NumLit Rational
              | StrLit String
              | CharLit Char
              deriving (Show, Eq)
+
+-- ** Numbers
+
+{- | 
+Parse a number literal. The number is represented as a 'Rational' number.
+
+=== EBNF
+@
+numberLit = [ "-" ] , digits                     (* Integer part  *)
+          , [ "." , digits ]                     (* Fraction part *)
+          , [ ( "e" , \"E\" ) , [ "-" ] , digits ] (* Exponent part *) ;
+
+digits = digit , { digit } ;
+@
+
+=== __Examples__
+>>> parse numberLit "" "123"
+Right (NumLit (123 % 1))
+>>> parse numberLit "" "12.3"
+Right (NumLit (123 % 10))
+>>> parse numberLit "" "12.3e0"
+Right (NumLit (123 % 10))
+>>> parse numberLit "" "-12.3E3"
+Right (NumLit ((-12300) % 1))
+>>> parse numberLit "" "-12.3e4"
+Right (NumLit ((-123000) % 1))
+>>> parse numberLit "" "-12.3E-3"
+Right (NumLit ((-123) % 10000))
+>>> parse numberLit "" "0.0"
+Right (NumLit (0 % 1))
+>>> parse numberLit "" "0000.000"
+Right (NumLit (0 % 1))
+>>> parse numberLit "" "0.0001"
+Right (NumLit (1 % 10000))
+-}
+numberLit :: Parsec String u Literal
+numberLit = do
+  s <- fromInteger <$> maybeNeg :: Parsec String u Rational
+  i <- fromInteger <$> uInt
+  f <- option "0" $ char '.' *> digits
+  let f' = fromInteger (read f) / (10 ^^ length f)
+  e <- option (0 :: Integer) $ oneOf "eE" *>
+    ((*) <$> maybeNeg) <*> uInt
+  return $ NumLit $ s * (i + f') * (10 ^^ e)
+  where
+    uInt = read <$> digits
+    maybeNeg = option 1 ((-1) <$ char '-')
+    digits = many1 digit
 
 -- ** Strings
 
