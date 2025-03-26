@@ -7,87 +7,91 @@ import ParserSpec.HelperFunctions
 literalsSpec :: Spec
 literalsSpec = describe "Literals" $ do
   describe "numberLit" $ do
+    let s = parses numberLit       -- succeeds parse
+    let f = failsToParse numberLit -- fails to parse
     context "when given a positive integer" $ do
       it "parses the number" $ do
-        parsesNumber "123" 123
+        s "123" 123
     context "when given a negative integer" $ do
       it "parses the number" $ do
-        parsesNumber "-123" (-123)
+        s "-123" (-123)
     context "when given a positive fraction" $ do
       it "parses the number" $ do
-        parsesNumber "12.3" 12.3
+        s "12.3" 12.3
     context "when given a negative fraction" $ do
       it "parses the number" $ do
-        parsesNumber "-12.3" (-12.3)
+        s "-12.3" (-12.3)
     context "when given a positive number with exponent" $ do
       it "parses the number" $ do
-        parsesNumber "12.3e3" 12300
+        s "12.3e3" 12300
     context "when given a negative number with exponent" $ do
       it "parses the number" $ do
-        parsesNumber "-12.3e3" (-12300)
+        s "-12.3e3" (-12300)
     context "when given a positive number with exponent with capital E" $ do
       it "parses the number" $ do
-        parsesNumber "12.3E3" 12300
+        s "12.3E3" 12300
     context "when given a negative number with exponent with capital E" $ do
       it "parses the number" $ do
-        parsesNumber "-12.3E3" (-12300)
+        s "-12.3E3" (-12300)
     context "when given a positive number with exponent" $ do
       it "parses the number" $ do
-        parsesNumber "123e3" 123000
+        s "123e3" 123000
     context "when given a negative number with exponent" $ do
       it "parses the number" $ do
-        parsesNumber "-123e3" (-123000)
+        s "-123e3" (-123000)
     context "when given a positive number with negative exponent" $ do
       it "parses the number" $ do
-        parsesNumber "123e-3" 0.123
+        s "123e-3" 0.123
     context "when given a negative number with negative exponent" $ do
       it "parses the number" $ do
-        parsesNumber "-123e-3" (-0.123)
+        s "-123e-3" (-0.123)
     context "when given a positive fraction with negative exponent" $ do
       it "parses the number" $ do
-        parsesNumber "12.3e-3" 0.0123
+        s "12.3e-3" 0.0123
     context "when given a negative number with negative exponent" $ do
       it "parses the number" $ do
-        parsesNumber "-12.3e-3" (-0.0123)
+        s "-12.3e-3" (-0.0123)
     context "when given a decimal point with no integer part" $ do
       it "fails to parse" $ do
-        failsToParse numberLit ".123"
+        f ".123"
     context "when given a decimal point with no fraction part" $ do
       it "fails to parse" $ do
-        failsToParse numberLit "123."
+        f "123."
     context "when given a e with no exponent" $ do
       it "fails to parse" $ do
-        failsToParse numberLit "123e"
+        f "123e"
 
   describe "charLit" $ do
+    let s = parses charLit       -- succeeds parse
+    let f = failsToParse charLit -- fails to parse
     context "when given a character literal" $ do
       it "parses the character" $ do
-        parsesChar "'a'" 'a'
+        s "'a'" 'a'
     context "when given a valid escaped character" $ do
       it "parses new line" $ do
-        parsesChar "'\\n'" '\n'
+        s "'\\n'" '\n'
       it "parses carriage return" $ do
-        parsesChar "'\\r'" '\r'
+        s "'\\r'" '\r'
       it "parses form feed" $ do
-        parsesChar "'\\f'" '\f'
+        s "'\\f'" '\f'
       it "parses backspace" $ do
-        parsesChar "'\\b'" '\b'
+        s "'\\b'" '\b'
       it "parses tab" $ do
-        parsesChar "'\\t'" '\t'
+        s "'\\t'" '\t'
       it "parses single quote" $ do
-        parsesChar "'\\''" '\''
+        s "'\\''" '\''
       it "parses double quote" $ do
-        parsesChar "'\\\"'" '"'
+        s "'\\\"'" '"'
       it "parses backslash" $ do
-        parsesChar "'\\\\'" '\\'
+        s "'\\\\'" '\\'
       it "parses null" $ do
-        parsesChar "'\0'" '\NUL'
+        s "'\0'" '\NUL'
     context "when given an invalid escape character" $ do
       it "fails to parse" $ do
-        charLit `failsToParse` "'\\z'"
+        f "'\\z'"
     context "when given an valid 4 digit hex character" $ do
       it "parses the hex character" $ do
-        mapM_ (uncurry parsesChar) [ ("'\\x0061'", 'a')
+        mapM_ (uncurry s) [ ("'\\x0061'", 'a')
                                    , ("'\\x0041'", 'A')
                                    , ("'\\x0030'", '0')
                                    , ("'\\x0039'", '9')
@@ -96,40 +100,42 @@ literalsSpec = describe "Literals" $ do
                                    ]
     context "when given an invalid 4 digit hex character" $ do
       it "fails to parse" $ do
-        charLit `failsToParse` "'\\x00z0'"
+        f "'\\x00z0'"
     context "when given an invalid length hex character" $ do
       it "fails to parse" $ do
-        mapM_ (failsToParse charLit) [ "'\\x0'"
-                                     , "'\\x'"
-                                     , "'\\x000'"
-                                     , "'\\x00000'"
-                                     ]
+        mapM_ f [ "'\\x0'"
+                , "'\\x'"
+                , "'\\x000'"
+                , "'\\x00000'"
+                ]
     context "when given an empty character literal" $ do
       it "fails to parse" $ do
-        charLit `failsToParse` "''"
+        f "''"
     context "when given a character literal with no closing quote" $ do
       it "fails to parse" $ do
-        charLit `failsToParse` "'a"
-  
+        f "'a"
+
   describe "strLit" $ do
+    let s = parses strLit       -- succeeds parse
+    let f = failsToParse strLit -- fails to parse
     context "when given a string literal" $ do
       it "parses the string" $ do
-        parsesString "\"hello\"" "hello"
+        s "\"hello\"" "hello"
     context "when given a string with escaped characters" $ do
       it "parses the string" $ do
-        parsesString "\"\\n\\r\\f\\b\\t\\'\\\"\\\\\\0\"" "\n\r\f\b\t'\"\\\0"
+        s "\"\\n\\r\\f\\b\\t\\'\\\"\\\\\\0\"" "\n\r\f\b\t'\"\\\0"
     context "when given a string with escaped hex characters" $ do
       it "parses the string" $ do
-        parsesString "\"\\x0061\\x0041\\x0030\\x0039\\x0046\\xabcd\"" "aA09F\xabcd"
-    context "when given a string with invalid escaped characters" $ do
-      it "fails to parse" $ do
-        strLit `failsToParse` "\"\\z\""
-    context "when given a string with invalid escaped hex characters" $ do
-      it "fails to parse" $ do
-        strLit `failsToParse` "\"\\x00z0\""
+        s "\"\\x0061\\x0041\\x0030\\x0039\\x0046\\xabcd\"" "aA09F\xabcd"
     context "when given an empty string literal" $ do
       it "parses the empty string" $ do
-        parsesString "\"\"" ""
+        s "\"\"" ""
+    context "when given a string with invalid escaped characters" $ do
+      it "fails to parse" $ do
+        f "\"\\z\""
+    context "when given a string with invalid escaped hex characters" $ do
+      it "fails to parse" $ do
+        f "\"\\x00z0\""
     context "when given a string with no closing quote" $ do
       it "fails to parse" $ do
-        strLit `failsToParse` "\"hello"
+        f "\"hello"

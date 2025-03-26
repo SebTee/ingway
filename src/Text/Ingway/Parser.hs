@@ -7,7 +7,7 @@ Maintainer  : SebTee
 
 Library for parsing the Ingway language.
 
-This bocumentaion will use [Extended Backus–Naur form]
+This documentaion will use [Extended Backus–Naur form]
 (https://en.wikipedia.org/wiki/Extended_Backus-Naur_form)
 (EBNF) to describe the grammar of the language.
 
@@ -33,15 +33,113 @@ hexDigit = digit
          | \"A\" | \"B\" | \"C\" | \"D\" | \"E\" | \"F\" 
          | "a" | "b" | "c" | "d" | "e" | "f" ;
 
-anyChar = ? any character ? ;
+any = ? any character ? ;
+
+space = ? white space character ? ;
+
+spaces = { space } ;
+
+spaces1 = space , spaces ;
 @
 -}
-module Text.Ingway.Parser where
+module Text.Ingway.Parser
+  ( -- * Expressions
+    Expression(..)
+  , expression
+  , funcApp 
+    -- * Identifiers
+  , Ident
+  , ident
+    -- * Literals
+  , Literal(..)
+  , literal
+    -- ** Numbers
+  , numberLit
+    -- ** Strings
+  , strLit
+    -- ** Characters
+  , charLit
+  , escapedChar
+  ) where
 
 import Text.Parsec
 import Data.Maybe (fromJust)
 
--- * Literals
+data Expression = Lit Literal -- ^ Literal value
+                | Var Ident -- ^ Variable identifier
+                | App Expression Expression -- ^ Function application
+                deriving (Show, Eq)
+
+{- | 
+Expression parser.
+
+=== EBNF
+@
+expression = 'funcApp' | 'literal' | 'ident' ;
+@
+
+=== __Examples__
+>>> parse expression "" "123"
+Right (Lit (NumLit (123 % 1)))
+>>> parse expression "" "\"hello\""
+Right (Lit (StrLit "hello"))
+>>> parse expression "" "'a'"
+Right (Lit (CharLit 'a'))
+>>> parse expression "" "add 1 2"
+Right (App (App (Var "add") (Lit (NumLit (1 % 1)))) (Lit (NumLit (2 % 1))))
+-}
+expression :: Parsec String u Expression
+expression = try funcApp <|> termExpr
+
+{- | 
+Function application parser.
+
+=== EBNF
+@
+funcApp = 'expression' , spaces1 , 'expression';
+@
+-}
+funcApp :: Parsec String u Expression
+funcApp = do
+  f <- termExpr
+  skipMany1 space
+  a <- expression
+  case a of
+    App f' a' -> return $ App (App f f') a'
+    _ -> return $ App f a
+
+termExpr :: Parsec String u Expression
+termExpr = Lit <$> literal <|> Var <$> ident
+
+-- | A variable or type identifier.
+type Ident = String
+
+{- | 
+Parse an identifier.
+
+=== EBNF
+@ident = letter , { letter | digit | "_" } ;@
+
+=== __Examples__
+>>> parse ident "" "hello"
+Right "hello"
+>>> parse ident "" "hello123"
+Right "hello123"
+>>> parse ident "" "hello_123"
+Right "hello_123"
+>>> parse ident "" "HelloWorld"
+Right "HelloWorld"
+>>> parse ident "" "123Hello" -- can't start with a number
+Left (line 1, column 1):
+unexpected "1"
+expecting letter
+>>> parse ident "" "_HelloWorld" -- can't start with an underscore
+Left (line 1, column 1):
+unexpected "_"
+expecting letter
+-}
+ident :: Parsec String u Ident
+ident = (:) <$> letter <*> many (letter <|> digit <|> char '_')
 
 -- | A literal value in the Ingway language.
 data Literal = NumLit Rational
@@ -49,7 +147,17 @@ data Literal = NumLit Rational
              | CharLit Char
              deriving (Show, Eq)
 
--- ** Numbers
+{- |
+Parse a literal value. 
+
+=== EBNF
+@literal = 'strLit' | 'charLit' | 'numberLit' ;@
+-}
+literal :: Parsec String u Literal
+literal = choice [ StrLit <$> strLit
+                 , CharLit <$> charLit
+                 , NumLit <$> numberLit
+                 ]
 
 {- | 
 Parse a number literal. The number is represented as a 'Rational' number.
@@ -83,7 +191,7 @@ Right (NumLit (0 % 1))
 >>> parse numberLit "" "0.0001"
 Right (NumLit (1 % 10000))
 -}
-numberLit :: Parsec String u Literal
+numberLit :: Parsec String u Rational
 numberLit = do
   s <- fromInteger <$> maybeNeg :: Parsec String u Rational
   i <- fromInteger <$> uInt
@@ -91,19 +199,17 @@ numberLit = do
   let f' = fromInteger (read f) / (10 ^^ length f)
   e <- option (0 :: Integer) $ oneOf "eE" *>
     ((*) <$> maybeNeg) <*> uInt
-  return $ NumLit $ s * (i + f') * (10 ^^ e)
+  return $ s * (i + f') * (10 ^^ e)
   where
     uInt = read <$> digits
     maybeNeg = option 1 ((-1) <$ char '-')
     digits = many1 digit
 
--- ** Strings
-
 {- |
 Parse a string literal.
 
 === EBNF
-@charLit = """ , ( 'escapedChar' | anyChar - """ - "\\" ) , """ ;@
+@charLit = """ , ( 'escapedChar' | any - """ - "\\" ) , """ ;@
 
 === __Examples__
 >>> parse strLit "" "\"hello\""
@@ -111,19 +217,17 @@ Right (StrLit "hello")
 >>> parse strLit "" "\"\\\"\""
 Right (StrLit "\"")
 -}
-strLit :: Parsec String u Literal
-strLit = StrLit <$> between pqm pqm (many $ escapedChar <|> noneOf [qm])
+strLit :: Parsec String u String
+strLit = between pqm pqm (many $ escapedChar <|> noneOf [qm])
   where
     pqm = char qm
     qm = '\"'
-
--- ** Characters
 
 {- |
 Parse a character literal.
 
 === EBNF
-@charLit = "'" , ( 'escapedChar' | anyChar - "'" - "\\" ) , "'" ;@
+@charLit = "'" , ( 'escapedChar' | any - "'" - "\\" ) , "'" ;@
 
 === __Examples__
 >>> parse charLit "" "'a'"
@@ -133,8 +237,8 @@ Right (CharLit '\n')
 >>> parse charLit "" "'\\x0041'"
 Right (CharLit 'A')
 -}
-charLit :: Parsec String u Literal
-charLit = CharLit <$> between pqm pqm (escapedChar <|> noneOf [qm])
+charLit :: Parsec String u Char
+charLit = between pqm pqm (escapedChar <|> noneOf [qm])
   where
     pqm = char qm
     qm = '\''
@@ -172,7 +276,9 @@ Parse an escaped character into a single character.
 === EBNF
 @
 escapedChar = "\\" , ( singleCharEscape | charHex ) ;
+
 singleCharEscape = """ | "'" | "\\" | "b" | "f" | "n" | "r" | "t" | "0" ;
+
 charHex = "x" , 4 * hexDigit ;
 @
 
