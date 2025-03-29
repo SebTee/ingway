@@ -48,7 +48,7 @@ module Text.Ingway.Parser
   , expression
   , funcApp 
     -- * Identifiers
-  , Ident
+  , Ident(..)
   , ident
     -- * Literals
   , Literal(..)
@@ -75,7 +75,7 @@ Expression parser.
 
 === EBNF
 @
-expression = 'funcApp' | 'literal' | 'ident' ;
+expression = 'funcApp' | 'literal' | 'ident' | "(" spaces 'expression' spaces ")";
 @
 
 === __Examples__
@@ -103,16 +103,24 @@ funcApp :: Parsec String u Expression
 funcApp = do
   f <- termExpr
   skipMany1 space
-  a <- expression
-  case a of
-    App f' a' -> return $ App (App f f') a'
-    _ -> return $ App f a
+  e <- Left <$> parenthesized <|> Right <$> expression
+  return $ case e of
+    Left e' -> App f e'
+    Right (App f' e') -> App (App f f') e'
+    Right e' -> App f e'
 
 termExpr :: Parsec String u Expression
-termExpr = Lit <$> literal <|> Var <$> ident
+termExpr = Lit <$> literal <|> Var <$> ident <|> parenthesized
+
+parenthesized :: Parsec String u Expression
+parenthesized = between (char '(') (char ')') $ whiteSpaceSurrounded expression
+
+whiteSpaceSurrounded :: Parsec String u t -> Parsec String u t
+whiteSpaceSurrounded = between spaces spaces
 
 -- | A variable or type identifier.
-type Ident = String
+newtype Ident = Ident String
+  deriving (Show, Eq)
 
 {- | 
 Parse an identifier.
@@ -139,7 +147,10 @@ unexpected "_"
 expecting letter
 -}
 ident :: Parsec String u Ident
-ident = (:) <$> letter <*> many (letter <|> digit <|> char '_')
+ident = do
+  c <- letter
+  cs <- many (letter <|> digit <|> char '_')
+  return $ Ident $ c : cs
 
 -- | A literal value in the Ingway language.
 data Literal = NumLit Rational
